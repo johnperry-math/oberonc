@@ -136,7 +136,11 @@ MODULE OJG;
       mod := OJB.GetModOf(type.base);
       i := Strings.Write(mod.name, out, i);
       i := Strings.WriteChar("_", out, i);
-      i := Strings.Write(type.base.typobj.name, out, i)
+      IF type.base.typobj # NIL THEN
+        i := Strings.Write(type.base.typobj.name, out, i)
+      ELSE
+        i := Strings.Write(type.typobj.name, out, i)
+      END
     ELSIF type.form = OJB.Proc THEN
       i := normalize(type.signature, out, i)
     END

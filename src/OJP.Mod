@@ -30,6 +30,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
     pbsList: PtrBase;   (*list of names of pointer base types*)
     dummy: OJB.Object;
     hasMain: BOOLEAN;
+    error: ARRAY 1000 OF CHAR;
 
   PROCEDURE Check(s: INTEGER; msg: ARRAY OF CHAR);
   BEGIN
@@ -37,15 +38,25 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
   END Check;
 
   PROCEDURE qualident(VAR modName: ARRAY OF CHAR): OJB.Object;
-    VAR obj: OJB.Object;
+    VAR obj: OJB.Object; i: INTEGER;
   BEGIN
     obj := OJB.thisObj(OJS.id); OJS.Get(sym);
-    IF obj = NIL THEN OJS.Mark("undef"); obj := dummy END ;
+    IF obj = NIL THEN
+      i := 0;
+      i := Strings.Write(OJS.id, error, i);
+      i := Strings.Write(" is undefined", error, i);
+      OJS.Mark(error); obj := dummy
+    END ;
     IF (sym = OJS.period) & (obj.class = OJB.Mod) THEN
       Strings.Copy(OJB.GModtab[-obj.lev].name, modName);
       OJS.Get(sym);
       IF sym = OJS.ident THEN obj := OJB.thisimport(obj, OJS.id); OJS.Get(sym);
-        IF obj = NIL THEN OJS.Mark("undef"); obj := dummy END
+        IF obj = NIL THEN
+          i := 0;
+          i := Strings.Write(obj.name, error, i);
+          i := Strings.Write(" is undefined", error, i);
+          OJS.Mark(error); obj := dummy
+        END
       ELSE OJS.Mark("identifier expected"); obj := dummy
       END
     ELSE Strings.Copy(modid, modName)
@@ -54,66 +65,113 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
   END qualident;
 
   PROCEDURE CheckBool(VAR x: OJG.Item);
+    VAR i: INTEGER;
   BEGIN
     IF x.type.form # OJB.Bool THEN
-      OJS.Mark("not Boolean"); x.type := OJB.boolType
+      i := 0;
+      i := Strings.Write(x.name, error, i);
+      i := Strings.Write(" is not Boolean", error, i);
+      OJS.Mark(error); x.type := OJB.boolType
     END
   END CheckBool;
 
   PROCEDURE CheckInt(VAR x: OJG.Item);
+    VAR i: INTEGER;
   BEGIN
     IF x.type.form # OJB.Int THEN
-      OJS.Mark("not Integer"); x.type := OJB.intType
+      i := 0;
+      i := Strings.Write(x.name, error, i);
+      i := Strings.Write(" is not an Integer", error, i);
+      OJS.Mark(error); x.type := OJB.intType
     END
   END CheckInt;
 
   PROCEDURE CheckByteRange(VAR x: OJG.Item);
+    VAR i: INTEGER;
   BEGIN
     IF (x.mode = OJB.Const) & ((x.a < 0) OR (x.a > 255)) THEN
-      OJS.Mark("not a valid BYTE value")
+      i := 0;
+      i := Strings.Write(x.name, error, i);
+      i := Strings.Write(" is not a valid BYTE value", error, i);
+      OJS.Mark(error)
     END
   END CheckByteRange;
 
   PROCEDURE CheckReal(VAR x: OJG.Item);
+    VAR i: INTEGER;
   BEGIN
     IF x.type.form # OJB.Real THEN
-      OJS.Mark("not Real"); x.type := OJB.realType
+      i := 0;
+      i := Strings.Write(x.name, error, i);
+      i := Strings.Write(" is not Real", error, i);
+      OJS.Mark(error); x.type := OJB.realType
     END
   END CheckReal;
 
   PROCEDURE CheckSet(VAR x: OJG.Item);
+    VAR i: INTEGER;
   BEGIN
-    IF x.type.form # OJB.Set THEN OJS.Mark("not Set"); x.type := OJB.setType END
+    IF x.type.form # OJB.Set THEN
+      i := 0;
+      i := Strings.Write(x.name, error, i);
+      i := Strings.Write(" is not a Set", error, i);
+      OJS.Mark(error); x.type := OJB.setType
+    END
   END CheckSet;
 
   PROCEDURE CheckSetVal(VAR x: OJG.Item);
+    VAR i: INTEGER;
   BEGIN
-    IF x.type.form # OJB.Int THEN OJS.Mark("not Int"); x.type := OJB.setType
+    IF x.type.form # OJB.Int THEN
+      i := 0;
+      i := Strings.Write(x.name, error, i);
+      i := Strings.Write(" must be an integer to do this", error, i);
+      OJS.Mark(error); x.type := OJB.setType
     ELSIF x.mode = OJB.Const THEN
       IF (x.a < 0) OR (x.a >= OJG.MaxSetElement) THEN
-        OJS.Mark("invalid set")
+        i := 0;
+        i := Strings.Write("a constant, such as ", error, i);
+        i := Strings.Write(x.name, error, i);
+        i := Strings.Write(", is not valid as a set", error, i);
+        OJS.Mark(error)
       END
     END
   END CheckSetVal;
 
   PROCEDURE CheckConst(VAR x: OJG.Item);
+    VAR i: INTEGER;
   BEGIN
     IF x.mode # OJB.Const THEN
-      OJS.Mark("not a constant"); x.mode := OJB.Const
+      i := 0;
+      i := Strings.Write(x.name, error, i);
+      i := Strings.Write(" is not a constant", error, i);
+      OJS.Mark(error); x.mode := OJB.Const
     END
   END CheckConst;
 
   PROCEDURE CheckReadOnly(VAR x: OJG.Item);
+    VAR i: INTEGER;
   BEGIN
-    IF x.rdo THEN OJS.Mark("read-only") END
+    IF x.rdo THEN
+      i := 0;
+      i := Strings.Write(x.name, error, i);
+      i := Strings.Write(" is read-only", error, i);
+      OJS.Mark("read-only")
+    END
   END CheckReadOnly;
 
   PROCEDURE CheckExport(): BOOLEAN;
-    VAR expo: BOOLEAN;
+    VAR expo: BOOLEAN; i: INTEGER;
   BEGIN
     IF sym = OJS.times THEN
       expo := TRUE; OJS.Get(sym);
-      IF level # 0 THEN OJS.Mark("remove asterisk") END
+      IF level # 0 THEN
+        i := 0;
+        i := Strings.Write("cannot export the nested object ", error, i);
+        i := Strings.Write(OJS.id, error, i);
+        i := Strings.Write("; remove asterisk", error, i);
+        OJS.Mark(error)
+      END
     ELSE expo := isDefinition
     END
     RETURN expo
@@ -138,7 +196,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
   (* expressions *)
 
   PROCEDURE TypeTest(VAR x: OJG.Item; T: OJB.Type; guard: BOOLEAN);
-    VAR xt: OJB.Type;
+    VAR xt: OJB.Type; i: INTEGER;
   BEGIN xt := x.type;
     IF (T.form = xt.form) &
        ((T.form = OJB.Pointer) OR
@@ -149,24 +207,45 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
           IF IsExtension(xt.base, T.base) THEN
             OJG.TypeTest(x, T.base, guard); x.type := T
           ELSE
-            OJS.Mark("not an extension")
+            i := 0;
+            i := Strings.Write(xt.typobj.name, error, i);
+            i := Strings.Write(" is not an extension of ", error, i);
+            i := Strings.Write(T.typobj.name, error, i);
+            OJS.Mark(error)
           END
         ELSIF (xt.form = OJB.Record) & (x.mode = OJB.ParStruct) THEN
           IF IsExtension(xt, T) THEN  OJG.TypeTest(x, T, guard); x.type := T
-          ELSE OJS.Mark("not an extension")
+          ELSE
+            i := 0;
+            i := Strings.Write(xt.typobj.name, error, i);
+            i := Strings.Write(" is not an extension of ", error, i);
+            i := Strings.Write(T.typobj.name, error, i);
+            OJS.Mark(error)
           END
-        ELSE OJS.Mark("incompatible types")
+        ELSE
+          i := 0;
+          i := Strings.Write(xt.typobj.name, error, i);
+          i := Strings.Write(" and ", error, i);
+          i := Strings.Write(T.typobj.name, error, i);
+          i := Strings.Write(" are incompatible types", error, i);
+          OJS.Mark(error)
         END
       ELSIF ~guard THEN OJG.MakeConstItem(x, OJB.boolType, 1)
       END
-    ELSE OJS.Mark("type mismatch")
+    ELSE
+      i := 0;
+      i := Strings.Write("type mismatch for ", error, i);
+      i := Strings.Write(xt.typobj.name, error, i);
+      i := Strings.Write(" and ", error, i);
+      i := Strings.Write(T.typobj.name, error, i);
+      OJS.Mark(error)
     END ;
     IF ~guard THEN x.type := OJB.boolType END
   END TypeTest;
 
   PROCEDURE selector(VAR x: OJG.Item);
     VAR y: OJG.Item; obj: OJB.Object;
-      modName: OJS.Ident;
+      modName: OJS.Ident; i: INTEGER;
   BEGIN
     WHILE (sym = OJS.lbrak) OR (sym = OJS.period) OR (sym = OJS.arrow)
         OR (sym = OJS.lparen) & (x.type.form IN {OJB.Record, OJB.Pointer}) DO
@@ -176,7 +255,11 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
           OJS.Get(sym); expression(y);
           IF x.type.form = OJB.Array THEN
             CheckInt(y); OJG.Index(x, y); x.type := x.type.base
-          ELSE OJS.Mark("not an array")
+          ELSE
+            i := 0;
+            i := Strings.Write(x.type.typobj.name, error, i);
+            i := Strings.Write(" is not an array, so you cannot use brackets", error, i);
+            OJS.Mark(error)
           END
         UNTIL sym # OJS.comma;
         Check(OJS.rbrak, "no ]")
@@ -186,16 +269,38 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
           IF x.type.form = OJB.Record THEN
             obj := OJB.thisfield(x.type); OJS.Get(sym);
             IF obj # NIL THEN OJG.FieldAccess(x, obj); x.type := obj.type
-            ELSE OJS.Mark("undef")
+            ELSE
+              i := 0;
+              IF obj # NIL THEN
+                i := Strings.Write(obj.name, error, i);
+                i := Strings.Write(" is undefined", error, i);
+              ELSE
+                i := Strings.Write("undefined", error, i)
+              END;
+              OJS.Mark(error)
             END
-          ELSE OJS.Mark("not a record")
+          ELSE
+            i := 0;
+            i := Strings.Write(x.name, error, i);
+            i := Strings.Write(" is not a record (it has type ", error, i);
+            i := Strings.Write(x.type.typobj.name, error, i);
+            i := Strings.Write(")", error, i);
+            OJS.Mark(error)
           END
-        ELSE OJS.Mark("ident?")
+        ELSE
+          i := 0;
+          i := Strings.Write(x.name, error, i);
+          i := Strings.Write(" is not an identifier", error, i);
+          OJS.Mark(error)
         END
       ELSIF sym = OJS.arrow THEN
         OJS.Get(sym);
         IF x.type.form = OJB.Pointer THEN x.type := x.type.base
-        ELSE OJS.Mark("not a pointer")
+        ELSE
+          i := 0;
+          i := Strings.Write(x.name, error, i);
+          i := Strings.Write(" is not a pointer", error, i);
+          OJS.Mark(error)
         END
       ELSE (*type guard*)
         OJS.Get(sym);
@@ -206,7 +311,11 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
           ELSE
             OJS.Mark("guard type expected")
           END
-        ELSE OJS.Mark("not an identifier")
+        ELSE
+          i := 0;
+          i := Strings.Write(x.name, error, i);
+          i := Strings.Write(" is not an identifer", error, i);
+          OJS.Mark(error)
         END ;
         Check(OJS.rparen, " ) missing")
       END
@@ -266,7 +375,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
   END CompTypes;
 
   PROCEDURE Parameter(par: OJB.Object);
-    VAR x: OJG.Item; varpar: BOOLEAN;
+    VAR x: OJG.Item; varpar: BOOLEAN; i: INTEGER;
   BEGIN
     expression(x);
     IF par # NIL THEN
@@ -305,7 +414,11 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
             (par.type.form = OJB.Char) THEN
         OJG.StrToChar(x);
         OJG.ValueParam(x)
-      ELSE OJS.Mark("incompatible parameters")
+      ELSE
+        i := Strings.Write(par.name, error, i);
+        i := Strings.Write(" is an incompatible parameter for ", error, i);
+        i := Strings.Write(x.name, error, i);
+        OJS.Mark(error)
       END
     END
   END Parameter;
@@ -329,7 +442,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
   END ParamList;
 
   PROCEDURE StandFunc(VAR x: OJG.Item; fct: INTEGER; restyp: OJB.Type);
-    VAR y: OJG.Item; n, npar: INTEGER;
+    VAR y: OJG.Item; i, n, npar: INTEGER;
   BEGIN
     Check(OJS.lparen, "no (");
     npar := fct MOD 10; fct := fct DIV 10;
@@ -349,7 +462,10 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
         IF x.type.form IN {OJB.Int, OJB.Real} THEN
           OJG.Abs(x); restyp := x.type
         ELSE
-          OJS.Mark("bad type")
+          i := 0;
+          i := Strings.Write(x.name, error, i);
+          i := Strings.Write(" must be INTEGER or REAL to apply ABS", error, i);
+          OJS.Mark(error)
         END
       ELSIF fct = 1 THEN (*ODD*) CheckInt(x); OJG.Odd(x)
       ELSIF fct = 2 THEN (*FLOOR*) CheckReal(x); OJG.Floor(x)
@@ -357,21 +473,36 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
       ELSIF fct = 4 THEN (*ORD*)
         IF x.type.form IN {OJB.Char, OJB.Bool, OJB.Set} THEN OJG.Ord(x)
         ELSIF (x.type.form = OJB.String) & (x.b = 2) THEN OJG.StrToChar(x)
-        ELSE OJS.Mark("bad type")
+        ELSE
+          i := 0;
+          i := Strings.Write(x.name, error, i);
+          i := Strings.Write(" must be CHAR, Set, or String to apply ORD", error, i);
+          OJS.Mark(error)
         END
       ELSIF fct = 5 THEN (*CHR*) CheckInt(x); OJG.Ord(x)
       ELSIF fct = 6 THEN (*LEN*)
           IF x.type.form = OJB.Array THEN
             OJG.Len(x)
           ELSE
-            OJS.Mark("not an array")
+            i := 0;
+            i := Strings.Write(x.name, error, i);
+            i := Strings.Write(" must be an array to apply LEN", error, i);
+            OJS.Mark(error)
           END
       ELSIF fct IN {7, 8, 9} THEN (*LSL, ASR, ROR*)
         IF x.type.form IN {OJB.Int, OJB.Set} THEN
           CheckInt(x); CheckInt(y);
           OJG.Shift(fct-7, x, y); restyp := x.type
         ELSE
-          OJS.Mark("bad type")
+          i := 0;
+          i := Strings.Write(x.name, error, i);
+          i := Strings.Write(" must be INTEGER or Set to apply ", error, i);
+          CASE fct OF
+            7: i := Strings.Write("LSL", error, i);
+          | 8: i := Strings.Write("ASR", error, i);
+          | 9: i := Strings.Write("ROR", error, i);
+          END;
+          OJS.Mark(error)
         END
       ELSIF fct = 11 THEN (*AND*) CheckInt(x); CheckInt(y); OJG.Band(x, y)
       ELSIF fct = 12 THEN (*BOR*) CheckInt(x); CheckInt(y); OJG.Bor(x, y)
@@ -391,10 +522,28 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
           THEN
             TypeTest(y, x.type, TRUE);
             restyp := x.type
-          ELSE OJS.Mark("casting not allowed")
+          ELSE
+            i := 0;
+            IF y.type.typobj # NIL THEN
+              i := Strings.Write(y.type.typobj.name, error, i);
+              i := Strings.Write(" (the type of ", error, i);
+              i := Strings.Write(y.name, error, i);
+              i := Strings.Write(")", error, i);
+            ELSE
+              i := Strings.Write(y.name, error, i)
+            END;
+            i := Strings.Write(" and ", error, i);
+            i := Strings.Write(x.type.typobj.name, error, i);
+            i := Strings.Write(" are incompatible", error, i);
+            OJS.Mark(error);
           END ;
           x := y
-        ELSE OJS.Mark("casting not allowed")
+        ELSE
+          i := 0;
+          i := Strings.Write("you can only cast to a type, and ", error, i);
+          i := Strings.Write(x.name, error, i);
+          i := Strings.Write(" is not a type", error, i);
+          OJS.Mark(error);
         END
       ELSIF fct = 21 THEN (*eot*) OJG.eot(x)
       ELSIF fct = 22 THEN (*ReadInt*) OJG.ReadInt(x)
@@ -439,6 +588,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
   PROCEDURE factor(VAR x: OJG.Item);
     VAR obj: OJB.Object;
       modName: OJS.Ident;
+      i: INTEGER;
   BEGIN (*sync*)
     IF (sym < OJS.char) OR (sym > OJS.ident) THEN
       OJS.Mark("expression expected");
@@ -457,7 +607,11 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
             OJG.PrepCall(x); ParamList(x); OJG.Call(x);
             OJG.storeVarPar;
             x.type := x.type.base
-          ELSE OJS.Mark("not a function"); ParamList(x)
+          ELSE
+            i := 0;
+            i := Strings.Write(x.name, error, i);
+            i := Strings.Write(" is not a function", error, i);
+            OJS.Mark(error); ParamList(x)
           END
         END
       END
@@ -680,6 +834,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
       x, y, z, w: OJG.Item;
       L0, L1: INTEGER;
       modName: OJS.Ident;
+      i: INTEGER;
 
     PROCEDURE TypeCase(obj: OJB.Object; VAR x: OJG.Item);
       VAR typobj: OJB.Object;
@@ -848,7 +1003,11 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
             IF (x.type.form = OJB.Proc) & (x.type.base.form = OJB.NoTyp) THEN
               OJG.PrepCall(x); ParamList(x); OJG.Call(x);
               OJG.storeVarPar
-            ELSE OJS.Mark("not a procedure"); ParamList(x)
+            ELSE
+              i := 0;
+              i := Strings.Write(x.name, error, i);
+              i := Strings.Write(" is not a procedure; you cannot call it", error, i);
+              OJS.Mark(error); ParamList(x)
             END
           (*procedure call without parameters*)
           ELSIF x.type.form = OJB.Proc THEN
@@ -857,10 +1016,21 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
               OJG.PrepCall(x);
               OJG.Call(x)
             ELSE
-              OJS.Mark("not a procedure")
+              i := 0;
+              i := Strings.Write(x.name, error, i);
+              i := Strings.Write(" is not a procedure; you cannot call it", error, i);
+              OJS.Mark(error)
             END
-          ELSIF x.mode = OJB.Typ THEN OJS.Mark("illegal assignment")
-          ELSE OJS.Mark("not a procedure")
+          ELSIF x.mode = OJB.Typ THEN
+            i := 0;
+            i := Strings.Write("illegal assignment to ", error, i);
+            i := Strings.Write(x.name, error, i);
+            OJS.Mark(error)
+          ELSE
+            i := 0;
+            i := Strings.Write(x.name, error, i);
+            i := Strings.Write(" is not a procedure; you cannot call it", error, i);
+            OJS.Mark(error)
           END
         END
       ELSIF sym = OJS.if THEN
@@ -934,7 +1104,11 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
           OJS.Mark("identifier expected")
         ELSIF (x.type.form = OJB.Int) OR (x.type.form = OJB.Char) THEN
           CasePart(x)
-        ELSE OJS.Mark("inadmissible type");
+        ELSE
+          i := 0;
+          i := Strings.Write(x.name, error, i);
+          i := Strings.Write(" is not of the right type for a CASE statement", error, i);
+          OJS.Mark(error);
           SkipCase;
           WHILE sym = OJS.bar DO SkipCase END
         END ;
@@ -980,7 +1154,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
     IF (x.mode = OJB.Const) & (x.type.form = OJB.Int) & (x.a >= 0) THEN
       len := x.a
     ELSE
-      len := 1; OJS.Mark("not a valid length")
+      len := 1; OJS.Mark("not a valid length for an array")
     END ;
     IF sym = OJS.of THEN OJS.Get(sym); typ.base := Type(FALSE);
     ELSIF sym = OJS.comma THEN OJS.Get(sym); typ.base := ArrayType()
@@ -994,6 +1168,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
     VAR obj, obj0, new, bot, base: OJB.Object;
       type, typ, tp: OJB.Type;
       modName: OJS.Ident;
+      i: INTEGER;
   BEGIN NEW(typ); typ.form := OJB.NoTyp; typ.base := NIL;
     typ.nofpar := 0; bot := NIL;
     IF sym = OJS.lparen THEN
@@ -1016,7 +1191,12 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
       WHILE sym = OJS.ident DO
         obj0 := obj;
         WHILE (obj0 # NIL) & (obj0.name # OJS.id) DO obj0 := obj0.next END ;
-        IF obj0 # NIL THEN OJS.Mark("mult def") END ;
+        IF obj0 # NIL THEN
+          i := 0;
+          i := Strings.Write(OJS.id, error, i);
+          i := Strings.Write(" is already defined", error, i);
+          OJS.Mark(error)
+        END ;
         NEW(new); Strings.Copy(OJS.id, new.name);
         new.class := OJB.Fld; new.recordType := typ;
         new.next := obj; obj := new;
@@ -1096,13 +1276,17 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
     VAR obj: OJB.Object; dmy: INTEGER;
       typ: OJB.Type;
       modName: OJS.Ident;
+      i: INTEGER;
   BEGIN
     IF sym = OJS.ident THEN
       obj := qualident(modName);
       IF obj.class = OJB.Typ THEN
         typ := obj.type
       ELSE
-        OJS.Mark("not a type"); typ := OJB.intType
+        i := 0;
+        i := Strings.Write(obj.name, error, i);
+        i := Strings.Write(" is not a type", error, i);
+        OJS.Mark(error); typ := OJB.intType
       END
     ELSIF sym = OJS.array THEN
       OJS.Get(sym); Check(OJS.of, "OF ?");
@@ -1121,6 +1305,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
   PROCEDURE Type0(typedef: BOOLEAN): OJB.Type;
     VAR dmy: INTEGER; obj, tmp: OJB.Object; ptbase: PtrBase;
       type: OJB.Type; modName: OJS.Ident;
+      i: INTEGER;
   BEGIN type := OJB.intType; (*sync*)
     IF (sym # OJS.ident) & (sym < OJS.array) THEN OJS.Mark("not a type");
       REPEAT OJS.Get(sym) UNTIL (sym = OJS.ident) OR (sym >= OJS.array)
@@ -1131,7 +1316,11 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
         IF (obj.type # NIL) & (obj.type.form # OJB.NoTyp) THEN
           type := obj.type
         END
-      ELSE OJS.Mark("not a type or undefined")
+      ELSE
+        i := 0;
+        i := Strings.Write(obj.name, error, i);
+        i := Strings.Write(" is not a type, or is undefined", error, i);
+        OJS.Mark(error)
       END
     ELSIF sym = OJS.array THEN OJS.Get(sym); type := ArrayType()
     ELSIF sym = OJS.record THEN
@@ -1153,13 +1342,20 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
             OJS.Get(sym);
             IF sym = OJS.ident THEN obj := OJB.thisimport(obj, OJS.id);
               OJS.Get(sym);
-              IF obj = NIL THEN OJS.Mark("undef")
+              IF obj = NIL THEN
+                i := 0;
+                i := Strings.Write(OJS.id, error, i);
+                i := Strings.Write(" is undefined", error, i);
+                OJS.Mark(error)
               ELSE type.base := obj.type
               END
             ELSE OJS.Mark("identifier expected")
             END
-          ELSE
-            OJS.Mark("no valid base type")
+          ELSE 
+            i := 0;
+            i := Strings.Write(obj.name, error, i);
+            i := Strings.Write(" is not a valid base type", error, i);
+            OJS.Mark(error)
           END
         ELSE
           (*enter into list of forward references to be fixed in Declarations*)
@@ -1191,6 +1387,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
     VAR obj, first: OJB.Object;
       x: OJG.Item; tp: OJB.Type; ptbase: PtrBase;
       expo, alias: BOOLEAN; id: OJS.Ident;
+      i: INTEGER;
   BEGIN
     (*sync*) pbsList := NIL;
     IF (sym < OJS.const) & (sym # OJS.end) & (sym # OJS.return) THEN
@@ -1259,7 +1456,10 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
     ptbase := pbsList;
     WHILE ptbase # NIL DO
       IF ptbase.type.base.form = OJB.Int THEN
-       OJS.Mark("undefined pointer base of")
+        i := 0;
+        i := Strings.Write(ptbase.name, error, i);
+        i := Strings.Write(" has undefined pointer base", error, i);
+        OJS.Mark(error)
       END ;
       ptbase := ptbase.next
     END ;
