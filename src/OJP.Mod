@@ -1387,7 +1387,6 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
     VAR obj, first: OJB.Object;
       x: OJG.Item; tp: OJB.Type; ptbase: PtrBase;
       expo, alias: BOOLEAN; id: OJS.Ident;
-      i: INTEGER;
   BEGIN
     (*sync*) pbsList := NIL;
     IF (sym < OJS.const) & (sym # OJS.end) & (sym # OJS.return) THEN
@@ -1456,14 +1455,7 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
     ptbase := pbsList;
     WHILE ptbase # NIL DO
       IF ptbase.type.base.form = OJB.Int THEN
-<<<<<<< HEAD
-        i := 0;
-        i := Strings.Write(ptbase.name, error, i);
-        i := Strings.Write(" has undefined pointer base", error, i);
-        OJS.Mark(error)
-=======
        OJS.MarkAppend("undefined pointer base: ", ptbase.name)
->>>>>>> upstream/master
       END ;
       ptbase := ptbase.next
     END ;
