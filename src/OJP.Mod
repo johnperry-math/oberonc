@@ -53,7 +53,9 @@ MODULE OJP; (*Oberon compiler for JVM in Oberon-07*)
       IF sym = OJS.ident THEN obj := OJB.thisimport(obj, OJS.id); OJS.Get(sym);
         IF obj = NIL THEN
           i := 0;
-          i := Strings.Write(obj.name, error, i);
+          i := Strings.Write(modName, error, i);
+          i := Strings.Write(".", error, i);
+          i := Strings.Write(OJS.id, error, i);
           i := Strings.Write(" is undefined", error, i);
           OJS.Mark(error); obj := dummy
         END
